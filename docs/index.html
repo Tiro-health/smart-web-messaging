@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMART Web Messaging SDK Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .demo-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.disconnected { background: #ffebee; color: #c62828; }
+        .status.connecting { background: #fff3e0; color: #ef6c00; }
+        .status.connected { background: #e8f5e8; color: #2e7d32; }
+        .status.error { background: #ffebee; color: #c62828; }
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #1565c0; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SMART Web Messaging SDK Demo</h1>
+    <p>This demo page showcases the <strong>@tiro-health/smart-web-messaging</strong> library in action.</p>
+
+    <div class="demo-section">
+        <h2>Connection Configuration</h2>
+        <div>
+            <label>
+                Messaging Handle: 
+                <input type="text" id="handle" value="demo-handle" placeholder="Enter messaging handle">
+            </label>
+        </div>
+        <div>
+            <label>
+                Origin (optional): 
+                <input type="text" id="origin" value="" placeholder="Leave empty for any origin">
+            </label>
+        </div>
+        <div>
+            <label>
+                Timeout (ms): 
+                <input type="number" id="timeout" value="1000">
+            </label>
+        </div>
+        <div>
+            <label>
+                Max Retries: 
+                <input type="number" id="retries" value="3">
+            </label>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>Connection Status</h2>
+        <div id="status" class="status disconnected">Disconnected</div>
+        <button id="connect-btn">Connect</button>
+        <button id="disconnect-btn" disabled>Disconnect</button>
+    </div>
+
+    <div class="demo-section">
+        <h2>Send Messages</h2>
+        <div>
+            <label>
+                Message Type: 
+                <select id="message-type">
+                    <option value="form.requestSubmit">form.requestSubmit</option>
+                    <option value="form.checkValidity">form.checkValidity</option>
+                    <option value="form.persist">form.persist</option>
+                    <option value="status.handshake">status.handshake</option>
+                </select>
+            </label>
+        </div>
+        <div>
+            <label>
+                Payload (JSON): 
+                <input type="text" id="payload" value='{"test": "data"}' placeholder="Enter JSON payload">
+            </label>
+        </div>
+        <button id="send-btn" disabled>Send Message</button>
+    </div>
+
+    <div class="demo-section">
+        <h2>Message Handlers</h2>
+        <p>Registered handlers: <span id="handler-count">0</span></p>
+        <button id="register-handlers">Register Demo Handlers</button>
+        <button id="clear-handlers">Clear All Handlers</button>
+    </div>
+
+    <div class="demo-section">
+        <h2>Console Log</h2>
+        <button id="clear-log">Clear Log</button>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script src="./dist/index.js"></script>
+    <script>
+        // Import the library (CommonJS style in browser)
+        const { SMARTWebMessagingConnector } = window;
+        
+        let connector = null;
+        const logElement = document.getElementById('log');
+        const statusElement = document.getElementById('status');
+        
+        // Logging function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            logElement.innerHTML += logLine + '\n';
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(logLine);
+        }
+        
+        // Update status display
+        function updateStatus(status) {
+            statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            statusElement.className = `status ${status}`;
+            
+            // Enable/disable buttons based on status
+            document.getElementById('connect-btn').disabled = status === 'connecting' || status === 'connected';
+            document.getElementById('disconnect-btn').disabled = status === 'disconnected';
+            document.getElementById('send-btn').disabled = status !== 'connected';
+        }
+        
+        // Create connector
+        function createConnector() {
+            const handle = document.getElementById('handle').value || 'demo-handle';
+            const origin = document.getElementById('origin').value || null;
+            const timeout = parseInt(document.getElementById('timeout').value) || 1000;
+            const maxRetries = parseInt(document.getElementById('retries').value) || 3;
+            
+            // Create a mock parent window for demo purposes
+            const mockParentWindow = {
+                postMessage: (message, origin) => {
+                    log(`Mock parent received: ${JSON.stringify(message)}`, 'mock');
+                    // Simulate a response for handshake
+                    if (message.messageType === 'status.handshake') {
+                        setTimeout(() => {
+                            const response = {
+                                messageId: SMARTWebMessagingConnector.generateMessageId(),
+                                responseToMessageId: message.messageId,
+                                payload: { status: 'ready' }
+                            };
+                            window.postMessage(response, '*');
+                        }, 100);
+                    }
+                },
+                addEventListener: () => {},
+                removeEventListener: () => {}
+            };
+            
+            connector = new SMARTWebMessagingConnector(
+                mockParentWindow,
+                { handle, origin },
+                { timeoutMs: timeout, maxRetries, autoInitialize: false }
+            );
+            
+            // Add status change listener
+            connector.addEventListener('statusChange', (status) => {
+                log(`Status changed to: ${status}`);
+                updateStatus(status);
+                updateHandlerCount();
+            });
+            
+            log(`Connector created with handle: ${handle}, origin: ${origin || 'any'}`);
+            updateStatus(connector.status);
+        }
+        
+        // Update handler count display
+        function updateHandlerCount() {
+            if (connector) {
+                document.getElementById('handler-count').textContent = connector.getHandlerCount();
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('connect-btn').addEventListener('click', async () => {
+            if (!connector) createConnector();
+            try {
+                log('Attempting to connect...');
+                await connector.connectWithRetry();
+                log('Connected successfully!');
+            } catch (error) {
+                log(`Connection failed: ${error.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('disconnect-btn').addEventListener('click', () => {
+            if (connector) {
+                connector.close();
+                log('Disconnected');
+                updateStatus('disconnected');
+            }
+        });
+        
+        document.getElementById('send-btn').addEventListener('click', async () => {
+            if (!connector || !connector.isConnectionReady) {
+                log('Not connected', 'error');
+                return;
+            }
+            
+            const messageType = document.getElementById('message-type').value;
+            let payload;
+            try {
+                payload = JSON.parse(document.getElementById('payload').value);
+            } catch (e) {
+                log(`Invalid JSON payload: ${e.message}`, 'error');
+                return;
+            }
+            
+            try {
+                log(`Sending message: ${messageType} with payload: ${JSON.stringify(payload)}`);
+                const response = await connector.sendMessage(messageType, payload);
+                log(`Received response: ${JSON.stringify(response)}`, 'response');
+            } catch (error) {
+                log(`Send message failed: ${error.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('register-handlers').addEventListener('click', () => {
+            if (!connector) {
+                log('No connector available', 'error');
+                return;
+            }
+            
+            // Register demo handlers
+            connector.on('form.requestSubmit', (message) => {
+                log(`Handler: form.requestSubmit received: ${JSON.stringify(message.payload)}`, 'handler');
+                return { success: true, message: 'Form submitted successfully' };
+            });
+            
+            connector.on('form.checkValidity', (message) => {
+                log(`Handler: form.checkValidity received: ${JSON.stringify(message.payload)}`, 'handler');
+                return { valid: true, errors: [] };
+            });
+            
+            connector.on('form.persist', (message) => {
+                log(`Handler: form.persist received: ${JSON.stringify(message.payload)}`, 'handler');
+                return { persisted: true, id: Math.random().toString(36) };
+            });
+            
+            log('Demo handlers registered');
+            updateHandlerCount();
+        });
+        
+        document.getElementById('clear-handlers').addEventListener('click', () => {
+            if (connector) {
+                const types = connector.getRegisteredMessageTypes();
+                types.forEach(type => connector.removeHandler(type));
+                log('All handlers cleared');
+                updateHandlerCount();
+            }
+        });
+        
+        document.getElementById('clear-log').addEventListener('click', () => {
+            logElement.innerHTML = '';
+        });
+        
+        // Initialize
+        log('SMART Web Messaging SDK Demo initialized');
+        updateStatus('disconnected');
+        updateHandlerCount();
+    </script>
+</body>
+</html>
