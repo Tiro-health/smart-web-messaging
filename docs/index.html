@@ -373,14 +373,19 @@
             log("SMART Web Messaging SDK Demo initialized");
             updateStatus("disconnected");
             updateHandlerCount();
-            
-            // Auto-connect when document loads
-            if (!connector) createConnector();
-            log("Attempting auto-connect...");
-            connector.connectWithRetry().then(() => {
-                log("Auto-connect successful!");
-            }).catch((error) => {
-                log(`Auto-connect failed: ${error.message}`, "error");
+
+            document.addEventListener("DOMContentLoaded", () => {
+                // Auto-connect when document loads
+                if (!connector) createConnector();
+                log("Attempting auto-connect...");
+                connector
+                    .connectWithRetry()
+                    .then(() => {
+                        log("Auto-connect successful!");
+                    })
+                    .catch((error) => {
+                        log(`Auto-connect failed: ${error.message}`, "error");
+                    });
             });
         </script>
     </body>
