@@ -173,10 +173,22 @@
             <div id="log" class="log"></div>
         </div>
 
+        <script>
+            // Create a mock require/exports system for CommonJS compatibility
+            window.exports = {};
+            window.module = { exports: {} };
+            window.require = function(id) {
+                if (id === './connector') {
+                    return window.module.exports;
+                }
+                return {};
+            };
+        </script>
+        <script src="./dist/connector.js"></script>
         <script src="./dist/index.js"></script>
         <script>
-            // Import the library (CommonJS style in browser)
-            const { SMARTWebMessagingConnector } = window;
+            // Import the library from exports
+            const { SMARTWebMessagingConnector } = window.exports;
 
             let connector = null;
             const logElement = document.getElementById("log");
