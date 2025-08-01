@@ -175,20 +175,28 @@
 
         <script>
             // Create a mock require/exports system for CommonJS compatibility
+            const modules = {};
             window.exports = {};
             window.module = { exports: {} };
             window.require = function(id) {
                 if (id === './connector') {
-                    return window.module.exports;
+                    return modules.connector || {};
                 }
                 return {};
             };
         </script>
         <script src="./dist/connector.js"></script>
+        <script>
+            // Store connector module exports
+            modules.connector = window.module.exports;
+            // Reset for next module
+            window.exports = {};
+            window.module = { exports: {} };
+        </script>
         <script src="./dist/index.js"></script>
         <script>
-            // Import the library from exports
-            const { SMARTWebMessagingConnector } = window.exports;
+            // Import the library from the final exports
+            const SMARTWebMessagingConnector = window.exports.SMARTWebMessagingConnector;
 
             let connector = null;
             const logElement = document.getElementById("log");
