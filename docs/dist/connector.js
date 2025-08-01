@@ -1,4 +1,3 @@
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -8,7 +7,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-Object.defineProperty(exports, "__esModule", { value: true });
 /**
  * Wraps a promise with a timeout that rejects if the operation takes too long
  */
@@ -19,7 +17,7 @@ function withTimeout(promise, ms) {
 /**
  * Handles SMART Web Messaging communication between windows/frames
  */
-class SMARTWebMessagingConnector {
+export default class SMARTWebMessagingConnector {
     /**
      * Creates a new SMART Web Messaging connector instance
      */
@@ -286,4 +284,3 @@ class SMARTWebMessagingConnector {
         });
     }
 }
-exports.default = SMARTWebMessagingConnector;

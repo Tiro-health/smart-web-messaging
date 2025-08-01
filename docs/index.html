@@ -172,31 +172,10 @@
             <button id="clear-log">Clear Log</button>
             <div id="log" class="log"></div>
         </div>
-
-        <script>
-            // Create a mock require/exports system for CommonJS compatibility
-            const modules = {};
-            window.exports = {};
-            window.module = { exports: {} };
-            window.require = function(id) {
-                if (id === './connector') {
-                    return modules.connector || {};
-                }
-                return {};
-            };
-        </script>
-        <script src="./dist/connector.js"></script>
-        <script>
-            // Store connector module exports
-            modules.connector = window.module.exports;
-            // Reset for next module
-            window.exports = {};
-            window.module = { exports: {} };
-        </script>
-        <script src="./dist/index.js"></script>
-        <script>
+        <script type="module" src="./dist/index.js"></script>
+        <script type="module">
             // Import the library from the final exports
-            const SMARTWebMessagingConnector = window.exports.SMARTWebMessagingConnector;
+            import { SMARTWebMessagingConnector } from "./dist/index.js";
 
             let connector = null;
             const logElement = document.getElementById("log");
@@ -236,32 +215,8 @@
                 const maxRetries =
                     parseInt(document.getElementById("retries").value) || 3;
 
-                // Create a mock parent window for demo purposes
-                const mockParentWindow = {
-                    postMessage: (message, origin) => {
-                        log(
-                            `Mock parent received: ${JSON.stringify(message)}`,
-                            "mock",
-                        );
-                        // Simulate a response for handshake
-                        if (message.messageType === "status.handshake") {
-                            setTimeout(() => {
-                                const response = {
-                                    messageId:
-                                        SMARTWebMessagingConnector.generateMessageId(),
-                                    responseToMessageId: message.messageId,
-                                    payload: { status: "ready" },
-                                };
-                                window.postMessage(response, "*");
-                            }, 100);
-                        }
-                    },
-                    addEventListener: () => {},
-                    removeEventListener: () => {},
-                };
-
                 connector = new SMARTWebMessagingConnector(
-                    mockParentWindow,
+                    window,
                     { handle, origin },
                     { timeoutMs: timeout, maxRetries, autoInitialize: false },
                 );
